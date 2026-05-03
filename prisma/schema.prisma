@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+model User {
+  id              Int     @id @default(autoincrement())
+  email           String  @unique
+  isEmailVerified Boolean @default(false)
+  name            String
+
+  accounts           Account[]
+  sessions           Session[]
+  verificationTokens VerificationToken[]
+
+  organizationsOwned  Organization[]
+  organizationMembers OrganizationMember[]
+  workspaceMembers    WorkspaceMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                Int          @id @default(autoincrement())
+  provider          AuthProvider
+  providerAccountId String
+  hashedPassword    String?
+  userId            Int
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  sessions  Session[]
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id                 Int      @id @default(autoincrement())
+  userId             Int
+  accountId          Int
+  hashedRefreshToken String
+  ip                 String?
+  userAgent          String?
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([accountId])
+}
+
+enum TokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+model VerificationToken {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  hashedToken String
+  tokenId     String    @unique
+  type        TokenType
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+// Organization & Workspace
+
+model Organization {
+  id        Int     @id @default(autoincrement())
+  name      String
+  isDefault Boolean @default(false)
+
+  ownerId Int
+  owner   User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members    OrganizationMember[]
+  workspaces Workspace[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, isDefault]) // only one default org
+  @@index([ownerId])
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+model OrganizationMember {
+  id             Int  @id @default(autoincrement())
+  userId         Int
+  organizationId Int
+  role           Role
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, organizationId])
+}
+
+model Workspace {
+  id        Int     @id @default(autoincrement())
+  name      String
+  slug      String  @unique
+  isDefault Boolean @default(false)
+
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  members WorkspaceMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, isDefault]) // only one default worksapce per org
+  @@index([organizationId])
+}
+
+model WorkspaceMember {
+  id          Int  @id @default(autoincrement())
+  userId      Int
+  workspaceId Int
+  role        Role
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, workspaceId])
+}
