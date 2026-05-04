@@ -138,6 +138,7 @@ model Workspace {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  forms     Form[]
 
   @@unique([organizationId, isDefault]) // only one default worksapce per org
   @@index([organizationId])
@@ -155,4 +156,32 @@ model WorkspaceMember {
   createdAt DateTime @default(now())
 
   @@unique([userId, workspaceId])
+}
+
+model Form {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  slug        String   @unique
+  workspaceId Int      @map("workspace_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  submissions FormSubmission[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+}
+
+model FormSubmission {
+  id        Int      @id @default(autoincrement())
+  formId    Int      @map("form_id")
+  data      Json     @map("data")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+  @@index([createdAt])
 }
