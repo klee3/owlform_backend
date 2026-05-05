@@ -232,6 +232,61 @@ export class FormService {
     };
   }
 
+  async getSubmissions(
+    userId: number,
+    workspaceSlug: string,
+    formSlug: string,
+    page = 1,
+    limit = 10,
+  ) {
+    // Prevent abuse
+    const safeLimit = Math.min(limit, 100);
+    const skip = (page - 1) * safeLimit;
+
+    // 1. Validate workspace access
+    const workspace = await this.validateWorkspaceAccess(userId, workspaceSlug);
+
+    // 2. Validate form
+    const form = await this.prismaClient.form.findFirst({
+      where: {
+        slug: formSlug,
+        workspaceId: workspace.id,
+      },
+      select: { id: true },
+    });
+
+    if (!form) {
+      throw new NotFoundException('Form not found');
+    }
+
+    // 3. Fetch paginated data + total count
+    const [submissions, total] = await Promise.all([
+      this.prismaClient.formSubmission.findMany({
+        where: { formId: form.id },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: safeLimit,
+      }),
+
+      this.prismaClient.formSubmission.count({
+        where: { formId: form.id },
+      }),
+    ]);
+
+    // 4. Return structured pagination response
+    return {
+      data: submissions,
+      meta: {
+        total,
+        page,
+        limit: safeLimit,
+        totalPages: Math.ceil(total / safeLimit),
+        hasNextPage: page * safeLimit < total,
+        hasPrevPage: page > 1,
+      },
+    };
+  }
+
   async deleteForm(userId: number, workspaceSlug: string, formSlug: string) {
     // 1. Validate workspace access
     const workspace = await this.validateWorkspaceAccess(userId, workspaceSlug);

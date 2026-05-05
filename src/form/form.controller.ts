@@ -77,7 +77,7 @@ export class FormController {
   }
 
   @UseGuards(JwtAuthGuard, SessionAuthGuard)
-  @Get('stats/:workspaceSlug/:formId')
+  @Get('stats/:workspaceSlug/:formSlug')
   getStats(
     @Req() req,
     @Param('workspaceSlug') workspaceSlug: string,
@@ -91,7 +91,7 @@ export class FormController {
   }
 
   @UseGuards(JwtAuthGuard, SessionAuthGuard)
-  @Get('stats/:workspaceSlug/:formId/last-30-days')
+  @Get('stats/:workspaceSlug/:formSlug/last-30-days')
   getLast30Days(
     @Req() req,
     @Param('workspaceSlug') workspaceSlug: string,
@@ -101,6 +101,24 @@ export class FormController {
       req.session.userId,
       workspaceSlug,
       formSlug,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, SessionAuthGuard)
+  @Get(':workspaceSlug/:formSlug/submissions')
+  getSubmissions(
+    @Req() req,
+    @Param('workspaceSlug') workspaceSlug: string,
+    @Param('formSlug') formSlug: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+  ) {
+    return this.formService.getSubmissions(
+      req.session.userId,
+      workspaceSlug,
+      formSlug,
+      Number(page),
+      Number(limit),
     );
   }
 
